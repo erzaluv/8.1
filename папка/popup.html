@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Парсер МВД</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #00C9FF 0%, #92FE9D 100%);
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-main: #2c3e50;
+            --text-muted: #596275;
+            --input-bg: #ffffff;
+            --input-text: #2c3e50;
+            --input-border: #dcdde1;
+            --btn-start: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            --btn-csv: linear-gradient(135deg, #2193b0 0%, #6dd5ed 100%);
+            --btn-clear: linear-gradient(135deg, #cb2d3e 0%, #ef473a 100%);
+            --btn-stop: linear-gradient(135deg, #f12711 0%, #f5af19 100%);
+            --btn-preview: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%);
+            --btn-shadow: rgba(0, 0, 0, 0.15);
+            --modal-bg: rgba(255, 255, 255, 0.98);
+        }
+
+        [data-theme="dark"] {
+            --bg-gradient: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+            --glass-bg: rgba(30, 35, 40, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #f5f6fa;
+            --text-muted: #dcdde1;
+            --input-bg: #2f3640;
+            --input-text: #f5f6fa;
+            --input-border: #40739e;
+            --btn-start: linear-gradient(135deg, #0575E6 0%, #021B79 100%);
+            --btn-csv: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+            --btn-clear: linear-gradient(135deg, #870000 0%, #190A05 100%);
+            --btn-stop: linear-gradient(135deg, #93291E 0%, #ED213A 100%);
+            --btn-preview: linear-gradient(135deg, #654ea3 0%, #eaafc8 100%);
+            --btn-shadow: rgba(0, 0, 0, 0.5);
+            --modal-bg: rgba(30, 35, 40, 0.98);
+        }
+
+        body { font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; width: 420px; margin: 0; padding: 20px; background: var(--bg-gradient); color: var(--text-main); transition: background 0.5s ease; }
+        .container { background: var(--glass-bg); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border); border-radius: 16px; padding: 20px; box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2); transition: all 0.5s ease; position: relative; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 10px; }
+        .header h2 { margin: 0; font-size: 18px; display: flex; align-items: center; gap: 8px; }
+        .header-controls { display: flex; gap: 10px; }
+        .icon-btn { background: none; border: none; cursor: pointer; font-size: 20px; padding: 5px; border-radius: 50%; transition: transform 0.3s ease; }
+        .icon-btn:hover { transform: rotate(30deg) scale(1.1); }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-size: 13px; margin-bottom: 6px; font-weight: 600; color: var(--text-muted); }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-wrapper svg { position: absolute; left: 12px; width: 18px; height: 18px; fill: var(--text-muted); }
+        input[type="text"], input[type="password"], input[type="email"], input[type="date"], input[list] { width: 100%; padding: 12px 12px 12px 40px; box-sizing: border-box; border: 1px solid var(--input-border); border-radius: 8px; background: var(--input-bg); color: var(--input-text); font-size: 14px; outline: none; transition: all 0.3s; }
+        input:focus { border-color: #00C9FF; box-shadow: 0 0 8px rgba(0, 201, 255, 0.5); }
+        
+        .status-board { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-radius: 8px; border: 1px solid var(--glass-border); }
+        [data-theme="dark"] .status-board { background: rgba(0,0,0,0.2); }
+        .badge { font-size: 11px; padding: 5px 10px; border-radius: 12px; background: var(--input-bg); color: var(--text-muted); border: 1px solid var(--input-border); cursor: pointer; transition: all 0.2s; font-weight: bold; user-select: none; }
+        .badge:hover { transform: translateY(-2px); border-color: #00C9FF; color: #00C9FF;}
+        .badge.done { background: #28a745; color: white; border-color: #28a745; }
+
+        .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .action-row { display: flex; gap: 10px; }
+        button.action-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-weight: bold; font-size: 13px; color: white; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 15px var(--btn-shadow); transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-start { background: var(--btn-start); flex: 2; }
+        .btn-stop { background: var(--btn-stop); flex: 1; }
+        .btn-preview { background: var(--btn-preview); }
+        .btn-csv { background: var(--btn-csv); }
+        .btn-clear { background: var(--btn-clear); }
+        button.action-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+
+        /* Оверлей и модальные окна */
+        .overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; border-radius: 16px; backdrop-filter: blur(4px); justify-content: center; align-items: center; }
+        .overlay.active { display: flex; }
+        .modal { background: var(--modal-bg); width: 90%; max-height: 90%; overflow-y: auto; padding: 20px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--glass-border); display: flex; flex-direction: column; }
+        .modal h3 { margin-top: 0; margin-bottom: 15px; text-align: center; }
+        .btn-close-modal { background: var(--btn-start); padding: 10px; border: none; border-radius: 8px; width: 100%; color: white; font-weight: bold; cursor: pointer; margin-top: 15px; flex-shrink: 0; }
+        .btn-red { background: var(--btn-clear) !important; margin-top: 5px; }
+        
+        /* Стили Настроек */
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; font-weight: bold; color: var(--text-main); }
+        .switch { position: relative; display: inline-block; width: 34px; height: 20px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #28a745; }
+        input:checked + .slider:before { transform: translateX(14px); }
+        .range-wrapper { margin-bottom: 20px; font-size: 13px; font-weight: bold; color: var(--text-main); }
+        .range-wrapper input { width: 100%; margin-top: 8px; }
+
+        /* Стили Таблицы (Предпросмотр) */
+        .table-container { overflow-x: auto; font-size: 11px; margin-bottom: 15px; border: 1px solid var(--glass-border); border-radius: 5px; }
+        table { width: 100%; border-collapse: collapse; white-space: nowrap; color: var(--text-main); }
+        th, td { border: 1px solid var(--glass-border); padding: 6px; text-align: center; }
+        th { background: rgba(128, 128, 128, 0.2); position: sticky; top: 0; font-weight: bold; }
+        tr:nth-child(even) { background: rgba(128, 128, 128, 0.05); }
+        .sum-row { font-weight: bold; background: rgba(0, 201, 255, 0.1) !important; }
+        .auth-divider { border: 0; border-top: 1px solid var(--glass-border); margin: 15px 0; }
+        .auth-title { text-align: center; font-size: 14px; color: #00C9FF; margin: 0 0 10px 0; font-weight: bold;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Меню Настроек -->
+        <div class="overlay" id="settings-overlay">
+            <div class="modal">
+                <h3>⚙️ Настройки</h3>
+                <div class="range-wrapper">
+                    Таймаут ожидания сервера: <span id="wait-time-val" style="color:#00C9FF;">12</span> сек.
+                    <input type="range" id="setting-wait" min="5" max="30" value="12">
+                </div>
+                <div class="setting-row"><span>Звуковые уведомления</span><label class="switch"><input type="checkbox" id="setting-sound"><span class="slider"></span></label></div>
+                <div class="setting-row"><span>Авто-скачивание CSV (16 ОВД)</span><label class="switch"><input type="checkbox" id="setting-auto"><span class="slider"></span></label></div>
+                
+                <!-- Блок ввода данных для авторизации -->
+                <hr class="auth-divider">
+                <p class="auth-title">🔐 Данные авторизации (СУДИС)</p>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <div class="input-wrapper">
+                        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+                        <input type="text" id="auth-email" placeholder="Эл. почта или Логин">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 5px;">
+                    <div class="input-wrapper">
+                        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg>
+                        <input type="password" id="auth-password" placeholder="Пароль">
+                    </div>
+                </div>
+                
+                <button class="btn-close-modal" id="btn-close-settings">Сохранить всё</button>
+                <button class="btn-close-modal btn-red" id="btn-clear-auth">Удалить данные входа</button>
+            </div>
+        </div>
+
+        <!-- Окно предпросмотра таблицы -->
+        <div class="overlay" id="preview-overlay">
+            <div class="modal" style="width: 95%;">
+                <h3>👀 Предпросмотр данных</h3>
+                <div id="preview-content"></div>
+                <button class="btn-close-modal" style="background: var(--btn-clear);" id="btn-close-preview">Закрыть</button>
+            </div>
+        </div>
+
+        <div class="header">
+            <h2>
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                Парсер МВД
+            </h2>
+            <div class="header-controls">
+                <button class="icon-btn" id="btn-settings" title="Настройки">⚙️</button>
+                <button class="icon-btn" id="btn-theme" title="Сменить тему">🌙</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="ovd">Выберите Район (ОВД):</label>
+            <div class="input-wrapper">
+                <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                <input list="ovd-list" id="ovd" placeholder="Нажмите на тег ниже или введите...">
+            </div>
+            <div class="status-board" id="status-board"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="date-start">Начало периода:</label>
+            <div class="input-wrapper">
+                <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                <input type="date" id="date-start">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="date-end">Конец периода:</label>
+            <div class="input-wrapper">
+                <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/></svg>
+                <input type="date" id="date-end">
+            </div>
+        </div>
+
+        <div class="actions">
+            <div class="action-row">
+                <button id="btn-start" class="action-btn btn-start">▶ Запуск</button>
+                <button id="btn-stop" class="action-btn btn-stop">🛑 Стоп</button>
+            </div>
+            <button id="btn-preview" class="action-btn btn-preview">👀 Предпросмотр</button>
+            <button id="btn-csv" class="action-btn btn-csv">📥 Скачать CSV</button>
+            <button id="btn-clear" class="action-btn btn-clear">🗑 Очистить память</button>
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

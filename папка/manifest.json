@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "MVD Stats Parser",
+  "version": "1.3",
+  "description": "Автоматизированный сбор статистики",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Парсер МВД"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>", "file:///*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["<all_urls>", "file:///*"]
+    }
+  ]
+}
